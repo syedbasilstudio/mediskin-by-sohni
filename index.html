@@ -465,18 +465,7 @@ function renderCat(i){
 }
 renderCat(0);
 
-/* ===== AI CONCIERGE ===== */
-/* To enable the 24/7 AI assistant in this standalone file, set your OpenAI API key below.
-   Get one at https://platform.openai.com/api-keys. It is stored only in your browser (localStorage). */
-const OPENAI_MODEL = 'gpt-4o-mini';
-const SYSTEM_PROMPT = `You are the Mediskin by Sohni concierge — a warm, professional AI assistant available 24/7 for the Mediskin by Sohni clinic in Lytham St Annes, Lancashire.
-
-ABOUT: Mediskin by Sohni is a luxury facial aesthetics, skin and wellbeing clinic in Lytham St Annes, founded and directed by Sohni Virdee. Address: 9 Fairlawn Road, Lytham, Lancashire, FY8 5PT. Phone: +44 7850 577289. Email: sohni@skinbyskv.com. Social: @mediskinbysohni. Philosophy: consultation-first; never pressure.
-
-PRICES (quote exactly): Anti-Wrinkle — Bunny Line £150–£175, Crow's Feet £150–£175, One Area £175, Two Areas £195, Three Areas £230, Masseter £230, Gummy Smile £175. Dermal Fillers — Cheek From £180, Tear Troughs From £230, Jawline From £240, Marionette From £150, Nasolabial From £150, Mouth-to-Chin From £150, Chin From £180. Advanced — Non-Surgical Rhinoplasty £450–£500, Non-Surgical Face Lift/Thread Lift £1,185, Lip Dissolving Complimentary Consultation. Skin — Advanced Facial Analysis £190–£259. Teeth Whitening (Enlighten, Boutique, WhiteWash) — Whitening Strip £75, Take Home Trays £375, Take Home + In Clinic £550.
-
-RULES: Warm, calm, concise (2–4 sentences). Never fabricate prices, results, qualifications or before-and-after. Never diagnose or guarantee results — suitability is confirmed in a consultation with Sohni. Steer gently to booking/calling when appropriate, never pushy.`;
-
+/* ===== AI CONCIERGE (self-contained — no API key needed) ===== */
 const WELCOME = "Hello, and welcome to Mediskin by Sohni. I'm here to help with treatments, pricing and booking, any time. How can I assist you today?";
 const SUGGESTIONS = ["How much is anti-wrinkle for three areas?","Tell me about non-surgical rhinoplasty","Where are you located?","How do I book a consultation?"];
 
@@ -510,50 +499,79 @@ document.getElementById('conciergeBtn').addEventListener('click', openPanel);
 document.getElementById('conciergeClose').addEventListener('click', closePanel);
 overlay.addEventListener('click', closePanel);
 
-function getKey(){ return localStorage.getItem('mediskin_openai_key') || ''; }
-function setKey(k){ localStorage.setItem('mediskin_openai_key', k); }
+/* --- Local knowledge engine --- */
+const AW = {
+  'bunny line':'£150–£175',"crow's feet":'£150–£175','crows feet':'£150–£175','one area':'£175','two areas':'£195','three areas':'£230','masseter':'£230','gummy smile':'£175'
+};
+const FILLERS = {
+  'cheek':'From £180','tear trough':'From £230','jawline':'From £240','marionette':'From £150','nasolabial':'From £150','nose-to-mouth':'From £150','nose to mouth':'From £150','mouth-to-chin':'From £150','mouth to chin':'From £150','chin':'From £180'
+};
+function priceList(){
+  return 'Anti-Wrinkle: Bunny Line £150–£175 · Crow\'s Feet £150–£175 · One Area £175 · Two Areas £195 · Three Areas £230 · Masseter £230 · Gummy Smile £175.\nDermal Fillers: Cheek from £180 · Tear Troughs from £230 · Jawline from £240 · Marionette from £150 · Nasolabial from £150 · Mouth-to-Chin from £150 · Chin from £180.\nAdvanced: Non-Surgical Rhinoplasty £450–£500 · Thread Lift £1,185 · Lip Dissolving — complimentary consultation.\nSkin: Advanced Facial Analysis £190–£259.\nTeeth Whitening: Strip £75 · Take Home Trays £375 · Take Home + In Clinic £550.';
+}
+function answer(q){
+  const s = q.toLowerCase();
+  const has = (...k) => k.some(w => s.includes(w));
+  const all = (...k) => k.every(w => s.includes(w));
 
-async function sendChat(text){
+  // prices
+  if (has('three area')) return 'Anti-wrinkle for three areas is £230. Sohni will confirm suitability in a consultation — book by calling +44 7850 577289 or emailing sohni@skinbyskv.com.';
+  if (has('two area')) return 'Anti-wrinkle for two areas is £195. Book a consultation with Sohni on +44 7850 577289 or sohni@skinbyskv.com.';
+  if (has('one area')) return 'Anti-wrinkle for one area is £175. Book a consultation with Sohni on +44 7850 577289 or sohni@skinbyskv.com.';
+  for (const [k,v] of Object.entries(AW)) if (s.includes(k)) return `Anti-wrinkle for ${k} is ${v}. Suitability is confirmed in a consultation — call Sohni on +44 7850 577289 or email sohni@skinbyskv.com.`;
+  for (const [k,v] of Object.entries(FILLERS)) if (s.includes(k)) return `Dermal filler for the ${k} is ${v}. Sohni will advise on suitability in a consultation — call +44 7850 577289 or email sohni@skinbyskv.com.`;
+
+  // specific treatments
+  if (has('rhinoplasty','nose job','nose filler')) return 'Non-surgical rhinoplasty is £450–£500 — a refined, non-surgical approach to nasal contouring, performed only after a personal consultation to confirm suitability. Book with Sohni on +44 7850 577289 or sohni@skinbyskv.com.';
+  if (has('thread lift','face lift','facelift','non-surgical face')) return 'The non-surgical face lift (thread lift) is £1,185. Suitability is confirmed in a consultation with Sohni — call +44 7850 577289 or email sohni@skinbyskv.com.';
+  if (has('lip dissolv','dissolve lip')) return 'Lip dissolving begins with a complimentary consultation. Book with Sohni on +44 7850 577289 or sohni@skinbyskv.com.';
+  if (has('facial analysis','skin analysis')) return 'Advanced Facial Analysis is £190–£259 — a personalised, in-depth assessment of your skin and facial anatomy before any treatment is discussed. Book on +44 7850 577289 or sohni@skinbyskv.com.';
+  if (has('teeth','whitening','whiten')) return 'Teeth whitening (Enlighten, Boutique, WhiteWash Laboratories): Whitening Strip £75 · Take Home Trays £375 · Take Home + In Clinic £550. Book on +44 7850 577289 or sohni@skinbyskv.com.';
+  if (has('anti-wrinkle','anti wrinkle','botox','wrinkle')) return 'Anti-wrinkle treatments: Bunny Line £150–£175 · Crow\'s Feet £150–£175 · One Area £175 · Two Areas £195 · Three Areas £230 · Masseter £230 · Gummy Smile £175. Suitability is confirmed in a consultation — call Sohni on +44 7850 577289 or email sohni@skinbyskv.com.';
+  if (has('filler','dermal','lip filler','cheek filler')) return 'Dermal fillers: Cheek from £180 · Tear Troughs from £230 · Jawline from £240 · Marionette from £150 · Nasolabial from £150 · Mouth-to-Chin from £150 · Chin from £180. Sohni advises on suitability in a consultation — call +44 7850 577289 or email sohni@skinbyskv.com.';
+
+  // price list
+  if (has('price list','price list','all prices','list of prices','full price','treatment list','menu')) return 'Here is the full price list:\n' + priceList();
+
+  // location
+  if (has('where','location','address','find you','based','where are you','directions')) return 'Mediskin by Sohni is at 9 Fairlawn Road, Lytham, Lancashire, FY8 5PT — in Lytham St Annes. Call Sohni on +44 7850 577289 or email sohni@skinbyskv.com to arrange your visit.';
+  // contact
+  if (has('phone','call','number','contact','reach')) return 'You can reach Sohni on +44 7850 577289, or email sohni@skinbyskv.com. The clinic is at 9 Fairlawn Road, Lytham, Lancashire, FY8 5PT.';
+  if (has('email','e-mail','mail')) return 'Email Sohni at sohni@skinbyskv.com, or call +44 7850 577289. The clinic is at 9 Fairlawn Road, Lytham, Lancashire, FY8 5PT.';
+  // booking
+  if (has('book','appointment','consultation','schedule','arrange')) return 'You can book a consultation by calling Sohni on +44 7850 577289 or emailing sohni@skinbyskv.com. Every treatment begins with a personal conversation before anything is recommended.';
+  // hours
+  if (has('hour','open','opening time','when are you open','close','closing')) return 'Consultations are by appointment with Sohni. To arrange a time, call +44 7850 577289 or email sohni@skinbyskv.com.';
+  // about
+  if (has('who is sohni','about sohni','who is the','about the clinic','about mediskin','tell me about')) return 'Mediskin by Sohni is a luxury facial aesthetics, skin and wellbeing clinic in Lytham St Annes, founded and directed by Sohni Virdee, who personally conducts every consultation and treatment. Call +44 7850 577289 or email sohni@skinbyskv.com.';
+  // reviews
+  if (has('review','testimonial','recommend','trust','reputation')) return 'Patients speak highly of Sohni — "a fabulous clinician, warm, friendly and truly dedicated… she puts everyone first and will do everything to put patients at ease." You can read more in the Reviews section, or speak with Sohni directly on +44 7850 577289.';
+  // social
+  if (has('instagram','facebook','threads','social','follow')) return 'Follow Mediskin on Instagram, Facebook and Threads @mediskinbysohni. You can also call Sohni on +44 7850 577289 or email sohni@skinbyskv.com.';
+  // cost general
+  if (has('how much','price','cost','£','pound')) return 'Which treatment would you like pricing for? Here is the full list:\n' + priceList();
+  // treatments general
+  if (has('treatment','service','what do you do','offer')) return 'Mediskin offers facial aesthetics (anti-wrinkle, dermal fillers, advanced procedures), skin treatments, and teeth whitening. Explore the Treatments section, or ask me about a specific treatment for its price.';
+  // greeting
+  if (has('hello','hi','hey','good morning','good afternoon','good evening')) return 'Hello, and welcome to Mediskin by Sohni. I can help with treatments, pricing and booking. What would you like to know?';
+  // thanks
+  if (has('thank','thanks','cheers')) return 'You\'re most welcome. If you\'d like to book a consultation, call Sohni on +44 7850 577289 or email sohni@skinbyskv.com.';
+  // fallback
+  return "I can help with treatments, exact pricing, location and booking. Could you tell me which treatment you're interested in? You can also call Sohni directly on +44 7850 577289 or email sohni@skinbyskv.com.";
+}
+
+function sendChat(text){
   const content = (text ?? chatInput.value).trim();
   if (!content || chatLoading) return;
   messages = [...messages, { role:'user', content }];
   chatInput.value = '';
   chatLoading = true; renderChat();
-
-  let key = getKey();
-  if (!key) {
-    key = window.prompt('To power the 24/7 AI concierge, enter your OpenAI API key (stored only in your browser):', '');
-    if (!key) {
-      messages = [...messages, { role:'assistant', content:"No problem — you can call Sohni directly on +44 7850 577289 or email sohni@skinbyskv.com, any time." }];
-      chatLoading = false; renderChat(); return;
-    }
-    setKey(key.trim());
-  }
-
-  try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${key.trim()}` },
-      body: JSON.stringify({
-        model: OPENAI_MODEL,
-        messages: [
-          { role:'system', content: SYSTEM_PROMPT },
-          ...messages.slice(-10).map(m => ({ role: m.role, content: m.content }))
-        ],
-        temperature: 0.4,
-        max_tokens: 400,
-      }),
-    });
-    if (res.status === 401) { localStorage.removeItem('mediskin_openai_key'); throw new Error('Invalid API key'); }
-    if (!res.ok) throw new Error('Request failed');
-    const data = await res.json();
-    const reply = data.choices?.[0]?.message?.content?.trim() || "I'm sorry, I wasn't able to answer that just now. Please call Sohni on +44 7850 577289 or email sohni@skinbyskv.com.";
+  // simulate a brief thinking delay for a natural feel
+  setTimeout(() => {
+    const reply = answer(content);
     messages = [...messages, { role:'assistant', content: reply }];
-  } catch (e) {
-    messages = [...messages, { role:'assistant', content:"I'm having trouble connecting right now. Please call Sohni on +44 7850 577289 or email sohni@skinbyskv.com." }];
-  } finally {
     chatLoading = false; renderChat();
-  }
+  }, 650);
 }
 chatForm.addEventListener('submit', (e) => { e.preventDefault(); sendChat(); });
 </script>
